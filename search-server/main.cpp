@@ -79,41 +79,22 @@ public:
 
     template <typename FilterPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, FilterPredicate filter_predicate) const {
-        vector<Document> matched_documents;
-        if constexpr (is_same_v<FilterPredicate, DocumentStatus>) {
-            switch (filter_predicate) {
-            case DocumentStatus::ACTUAL:
-                return FindTopDocuments(raw_query,
-                    [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-            case DocumentStatus::IRRELEVANT:
-                return FindTopDocuments(raw_query,
-                    [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::IRRELEVANT; });
-            case DocumentStatus::BANNED:
-                return FindTopDocuments(raw_query,
-                    [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::BANNED; });
-            case DocumentStatus::REMOVED:
-                return FindTopDocuments(raw_query,
-                    [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::REMOVED; });
-            }
-        }
-        else {
-            const Query query = ParseQuery(raw_query);
-            matched_documents = FindAllDocuments(query, filter_predicate);
+        const Query query = ParseQuery(raw_query);
+        auto matched_documents = FindAllDocuments(query, filter_predicate);
 
-            sort(matched_documents.begin(), matched_documents.end(),
-                [](const Document& lhs, const Document& rhs) {
-                    return lhs.relevance > rhs.relevance
-                        || (abs(lhs.relevance - rhs.relevance) < EPSILON && lhs.rating > rhs.rating);
-                });
-            if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-                matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-            }
+        sort(matched_documents.begin(), matched_documents.end(),
+            [](const Document& lhs, const Document& rhs) {
+                return lhs.relevance > rhs.relevance
+                    || (abs(lhs.relevance - rhs.relevance) < EPSILON && lhs.rating > rhs.rating);
+            });
+        if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
+            matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
         return matched_documents;
     }
 
-    vector<Document> FindTopDocuments(const string& raw_query) const {
-        return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus document_status = DocumentStatus::ACTUAL) const {
+        return FindTopDocuments(raw_query, [document_status](int document_id, DocumentStatus status, int rating) { return status == document_status; });
     }
 
 private:
